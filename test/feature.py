@@ -19,8 +19,8 @@ def load_images_from_folder(folder):
 
 def match_img(path):
     extractor = FeatureExtractor(
-        model_name="osnet_x0_25",
-        model_path="log/osnet__x0_25_market1501_softmax/model.pth.tar-25",
+        model_name="osnet_x1_0",
+        model_path="log/osnet__x1_0_market1501_softmax/model.pth.tar-25",
         device="cuda",
     )
 
@@ -35,9 +35,9 @@ def match_img(path):
 
     distmat = metrics.compute_distance_matrix(qf, gf)
 
-    # distmat_np = distmat.cpu().numpy()
+    distmat_np = distmat.cpu().numpy()
 
-    return distmat, qf_list, gf_list
+    return distmat_np, qf_list, gf_list
 
 
 # 顯示圖片函數

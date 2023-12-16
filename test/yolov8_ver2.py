@@ -16,16 +16,28 @@ def adjust_brightness(image, alpha=1.1, beta=20):
 
 
 def save_detections_from_video(
-    video_path, save_dir, step=10, roi=[0, 0, 1920, 1080], min_detection_size=100
+    cam, video_path, save_dir, step=10, roi=[0, 0, 1920, 1080], min_detection_size=100
 ):
     # Load the YOLO model
     model = YOLO("yolov8s.pt")
 
-    # Open the video file
-    cap = cv2.VideoCapture(video_path)
+    if cam:
+        cap = cv2.VideoCapture(0)
+    else:
+        # Open the video file
+        cap = cv2.VideoCapture(video_path)
+
     if not cap.isOpened():
         print("Error: Could not open video.")
         return
+
+    # Get video properties for the output
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    frame_rate = int(cap.get(cv2.CAP_PROP_FPS))
+
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # or 'XVID'
+    out = cv2.VideoWriter("output.mp4", fourcc, frame_rate, (frame_width, frame_height))
 
     # Ensure the save directory exists
     if not os.path.exists(save_dir):
@@ -80,40 +92,40 @@ def save_detections_from_video(
                         cropped_person,
                     )
 
-            distmat, qf_list, gf_list = match_img("../dataset/test img")
-            print(distmat)
+            distmat_np, qf_list, gf_list = match_img("../dataset/test img")
+            print(distmat_np)
 
             if gf_list == []:
                 frame_index += 1
                 continue
 
-            distmat_min = distmat.min(axis=1)
-            min_indices = torch.argmin(distmat, axis=1)
+            distmat_min = distmat_np.min(axis=1)
+            min_indices = np.argmin(distmat_np, axis=1)
 
             # 應用條件
-            # matches = torch.where(distmat_min > 300, -1, min_indices)
-            matches_t = torch.where(
-                distmat_min.values > 300, torch.tensor(-1, device="cuda:0"), min_indices
-            )
+            matches = np.where(distmat_min > 650, -1, min_indices)
+            # matches_t = torch.where(
+            #     distmat_min.values > 300, torch.tensor(-1, device="cuda:0"), min_indices
+            # )
 
             # matches = matches_t.cpu().numpy()
             # print(matches)
 
-            for i, match in enumerate(matches_t):
+            for i, match in enumerate(matches):
                 if match != -1:
                     # 檢查這個最小值是否在之前已經出現過
-                    if match in matches_t[:i]:
-                        matches_t[i] = -1
+                    if match in matches[:i]:
+                        matches[i] = -1
 
             last_detections.clear()
 
-            for i, match in enumerate(matches_t):
+            for i, match in enumerate(matches):
                 if match != -1:  # 確保有有效的匹配
                     query_filename = os.path.basename(qf_list[i])
                     gallery_filename = os.path.basename(gf_list[match])
                     x1, y1, x2, y2 = map(int, gallery_filename.split(".")[0].split("_"))
                     last_detections.append(
-                        (x1, y1, x2, y2, distmat_min.values[i], query_filename)
+                        (x1, y1, x2, y2, distmat_min[i], query_filename)
                     )  # 保存座標、距離值和 query 圖片名稱
 
         for x1, y1, x2, y2, dist, query_name in last_detections:
@@ -139,6 +151,8 @@ def save_detections_from_video(
                 1,
             )
 
+        out.write(frame)
+
         frame_index += 1  # Increment frame index
 
         cv2.imshow("frame", frame)
@@ -153,14 +167,17 @@ def save_detections_from_video(
 
     # Release the video object
     cap.release()
+    out.release()
+    cv2.destroyAllWindows()
 
 
 roi_area = [204, 216, 1781, 1080]
 
 # Call the function with the video path and save directory
 save_detections_from_video(
-    "../dataset/test img/testme1.mp4",
-    "../dataset/test img",
+    cam=False,
+    video_path="../dataset/test img/testme2.mp4",
+    save_dir="../dataset/test img",
     step=7,
     roi=roi_area,
 )
