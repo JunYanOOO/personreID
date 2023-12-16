@@ -129,7 +129,6 @@ class Engine(object):
         use_metric_cuhk03=False,
         ranks=[1, 5, 10, 20],
         rerank=False,
-        name_output=False,
     ):
         r"""A unified pipeline for training and evaluating a model.
 
@@ -175,7 +174,6 @@ class Engine(object):
                 use_metric_cuhk03=use_metric_cuhk03,
                 ranks=ranks,
                 rerank=rerank,
-                name_output=name_output,
             )
             return
 
@@ -298,7 +296,6 @@ class Engine(object):
         use_metric_cuhk03=False,
         ranks=[1, 5, 10, 20],
         rerank=False,
-        name_output=False,
     ):
         r"""Tests model on target datasets.
 
@@ -321,7 +318,7 @@ class Engine(object):
             print("##### Evaluating {} ({}) #####".format(name, domain))
             query_loader = self.test_loader[name]["query"]
             gallery_loader = self.test_loader[name]["gallery"]
-            rank1, mAP, name = self._evaluate(
+            rank1, mAP = self._evaluate(
                 dataset_name=name,
                 query_loader=query_loader,
                 gallery_loader=gallery_loader,
@@ -333,14 +330,11 @@ class Engine(object):
                 use_metric_cuhk03=use_metric_cuhk03,
                 ranks=ranks,
                 rerank=rerank,
-                name_output=name_output,
             )
 
             if self.writer is not None:
                 self.writer.add_scalar(f"Test/{name}/rank1", rank1, self.epoch)
                 self.writer.add_scalar(f"Test/{name}/mAP", mAP, self.epoch)
-
-            print(name)
 
         return rank1
 
@@ -358,7 +352,6 @@ class Engine(object):
         use_metric_cuhk03=False,
         ranks=[1, 5, 10, 20],
         rerank=False,
-        name_output=False,
     ):
         batch_time = AverageMeter()
 
@@ -431,11 +424,6 @@ class Engine(object):
                 save_dir=osp.join(save_dir, "visrank_" + dataset_name),
                 topk=visrank_topk,
             )
-
-        if name_output:
-            print("test OK")
-            name = "test2 OK"
-            return cmc[0], mAP, name
 
         return cmc[0], mAP
 
@@ -518,7 +506,7 @@ class Engine(object):
             print("##### Evaluating {} ({}) #####".format(name, domain))
             query_loader = self.test_loader[name]["query"]
             gallery_loader = self.test_loader[name]["gallery"]
-            file_name = self._evaluate(
+            file_name = self._evaluate2(
                 dataset_name=name,
                 query_loader=query_loader,
                 gallery_loader=gallery_loader,
@@ -543,7 +531,7 @@ class Engine(object):
         # return rank1
 
     @torch.no_grad()
-    def _evaluate(
+    def _evaluate2(
         self,
         dataset_name="",
         query_loader=None,
@@ -580,11 +568,21 @@ class Engine(object):
             return f_, pids_, camids_
 
         print("Extracting features from query set ...")
+
+        query_start = time.time()
         qf, q_pids, q_camids = _feature_extraction(query_loader)
+        query_end = time.time()
+        print(f"query:{query_end - query_start}")
+
         print("Done, obtained {}-by-{} matrix".format(qf.size(0), qf.size(1)))
 
         print("Extracting features from gallery set ...")
+
+        gallery_start = time.time()
         gf, g_pids, g_camids = _feature_extraction(gallery_loader)
+        gallery_end = time.time()
+        print(f"gallery:{gallery_end - gallery_start}")
+
         print("Done, obtained {}-by-{} matrix".format(gf.size(0), gf.size(1)))
 
         print("Speed: {:.4f} sec/batch".format(batch_time.avg))
@@ -633,10 +631,14 @@ class Engine(object):
             )
 
         if name_output:
+            name_start = time.time()
+
             name = find_most_similar_images(
                 distmat,
                 self.datamanager.fetch_test_loaders(dataset_name),
                 threshold=threshold,
             )
+            name_end = time.time()
+            print(f"name output:{name_end - name_start}")
 
             return name

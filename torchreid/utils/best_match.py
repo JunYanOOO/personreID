@@ -24,20 +24,38 @@ def find_most_similar_images(distmat, dataset, topk=1, threshold=None):
     assert num_q == len(query)
     assert num_g == len(gallery)
 
-    indices = np.argsort(distmat, axis=1)
+    # indices = np.argsort(distmat, axis=1)
+
+    # similar_images = []
+    # for q_idx in range(num_q):
+    #     qimg_path = query[q_idx][0]
+    #     qimg_name = osp.basename(qimg_path)
+
+    #     topk_indices = indices[q_idx, :topk]
+    #     topk_gallery_paths = []
+    #     for g_idx in topk_indices:
+    #         if threshold is None or distmat[q_idx, g_idx] <= threshold:
+    #             topk_gallery_paths.append(gallery[g_idx][0])
+    #             topk_gallery_names = [osp.basename(path) for path in topk_gallery_paths]
+    #             similar_images.append((qimg_name, topk_gallery_names))
+    #         else:
+    #             similar_images.append((qimg_name, [0]))
+
+    # return similar_images
+
+    ##########################################3
+    # 運用 NumPy 的向量化操作來提高效率
+    if threshold is not None:
+        distmat = np.where(distmat <= threshold, distmat, np.inf)
+
+    indices = np.argsort(distmat, axis=1)[:, :topk]
 
     similar_images = []
     for q_idx in range(num_q):
-        qimg_path = query[q_idx][0]
-        qimg_name = osp.basename(qimg_path)
-
-        topk_indices = indices[q_idx, :topk]
-        topk_gallery_paths = []
-        for g_idx in topk_indices:
-            if threshold is None or distmat[q_idx, g_idx] <= threshold:
-                topk_gallery_paths.append(gallery[g_idx][0])
-
-        topk_gallery_names = [osp.basename(path) for path in topk_gallery_paths]
+        qimg_name = osp.basename(query[q_idx][0])
+        topk_gallery_names = [
+            osp.basename(gallery[g_idx][0]) for g_idx in indices[q_idx]
+        ]
         similar_images.append((qimg_name, topk_gallery_names))
 
     return similar_images

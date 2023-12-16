@@ -1,6 +1,9 @@
+import torch
+
 import torchreid
 
 import time
+import cProfile
 
 
 def main():
@@ -16,16 +19,18 @@ def main():
     )
 
     model = torchreid.models.build_model(
-        name="osnet_x1_0",
+        name="osnet_x0_25",
         num_classes=datamanager.num_train_pids,
         loss="softmax",
         pretrained=True,
     )
 
-    model_path = "log\osnet_x1_0_market1501_softmax_cosinelr\model\model.pth.tar-250"
+    model_path = "log\osnet_x0_25_market1501_softmax\model\model.pth.tar-25"
     torchreid.utils.load_pretrained_weights(model, model_path)
 
     model = model.cuda()
+    # 跑一次熱機
+    # model(torch.empty(1, 3, 64, 128, dtype=torch.float64, device=torch.device("cuda")))
 
     optimizer = torchreid.optim.build_optimizer(model, optim="adam", lr=0.0003)
 
@@ -49,12 +54,12 @@ def main():
     mathch_name = engine.test2(
         dist_metric="euclidean",
         normalize_feature=False,
-        visrank=True,
+        visrank=False,
         visrank_topk=1,
         save_dir="log/resnet50",
         use_metric_cuhk03=False,
         ranks=[1],
-        rerank=True,
+        rerank=False,
         name_output=True,
         threshold=100,
     )
@@ -64,4 +69,10 @@ def main():
 
 
 if __name__ == "__main__":
+    start = time.time()
     main()
+    end = time.time()
+
+    print(f"total:{end - start}")
+
+    # cProfile.run("main()")
